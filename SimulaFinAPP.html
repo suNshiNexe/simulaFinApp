@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SimulaFin — Financiamento Imobiliário</title>
+<meta name="description" content="Simulador SAC e PRICE para financiamento imobiliário. Amortizações extras, TR e tabela completa.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg:#F0F4F8; --surface:#FFFFFF; --surface2:#F8FAFC;
+  --border:#E5E7EB; --border-l:#F3F4F6;
+  --text:#111827; --muted:#6B7280; --light:#9CA3AF;
+  --teal:#0F6E56; --teal-mid:#1D9E75; --teal-l:#E1F5EE; --teal-t:#064E3B;
+  --coral:#D85A30; --coral-l:#FEF3EE; --coral-t:#9A3412;
+  --blue:#185FA5; --blue-l:#EFF6FF;
+  --green:#059669; --green-l:#ECFDF5; --green-t:#065F46;
+  --amber:#B45309; --amber-l:#FFFBEB;
+  --r:12px; --r-sm:8px; --r-xs:6px;
+  --sh: 0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
+  --sh-md: 0 4px 16px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg); color: var(--text);
+  font-size: 14px; line-height: 1.6; min-height: 100vh;
+}
+
+/* ── LAYOUT ─────────────────────────────────── */
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 16px 56px; }
+
+/* ── TOPBAR ──────────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 0 18px; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--border-l); margin-bottom: 20px;
+}
+.logo { display: flex; align-items: center; gap: 11px; }
+.logo-icon {
+  width: 38px; height: 38px; background: var(--teal); border-radius: 11px;
+  display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(15,110,86,.3);
+}
+.logo-name { font-size: 19px; font-weight: 600; letter-spacing: -.3px; }
+.logo-sub { font-size: 11px; color: var(--muted); margin-top: -1px; }
+.topbar-r { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ── BUTTONS ─────────────────────────────────── */
+.btn {
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  padding: 7px 15px; border-radius: var(--r-sm); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); cursor: pointer;
+  transition: background .12s, border-color .12s, transform .1s;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; line-height: 1;
+}
+.btn:hover { background: var(--surface2); border-color: #D1D5DB; }
+.btn:active { transform: scale(.97); }
+.btn.primary { background: var(--teal); color: #fff; border-color: var(--teal); }
+.btn.primary:hover { background: #0a5c47; }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+.btn.ghost:hover { background: var(--surface); color: var(--text); border-color: var(--border); }
+.btn.del { border: none; background: transparent; color: var(--light); padding: 5px 7px; }
+.btn.del:hover { color: var(--coral); background: var(--coral-l); border-radius: var(--r-xs); }
+.btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+/* ── TOGGLE ──────────────────────────────────── */
+.tog {
+  display: flex; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 3px; gap: 2px;
+}
+.tog .btn { border: none; background: transparent; padding: 5px 14px; font-size: 12px; border-radius: 6px; color: var(--muted); }
+.tog .btn.active { background: var(--surface); box-shadow: var(--sh); color: var(--teal); font-weight: 600; }
+
+/* ── CONFIG PANEL ────────────────────────────── */
+#cfg-panel { display: none; }
+.cfg-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 20px; margin-bottom: 20px; box-shadow: var(--sh);
+}
+.cfg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.fl { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+input[type=text], input[type=number], input[type=month], select {
+  font-family: inherit; font-size: 13px; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm);
+  padding: 8px 11px; width: 100%; outline: none; transition: border-color .15s, box-shadow .15s;
+}
+input:focus, select:focus {
+  border-color: var(--teal-mid);
+  box-shadow: 0 0 0 3px rgba(29,158,117,.12);
+}
+
+/* ── TABS ────────────────────────────────────── */
+.tab-bar {
+  display: flex; border-bottom: 2px solid var(--border-l);
+  margin-bottom: 22px; gap: 4px;
+}
+.tbb {
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  padding: 9px 18px; border: none; background: transparent; color: var(--muted);
+  cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;
+  transition: color .15s;
+}
+.tbb:hover { color: var(--text); }
+.tbb.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+/* ── METRICS ─────────────────────────────────── */
+.met-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 12px; margin-bottom: 14px;
+}
+.met {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px 18px; box-shadow: var(--sh);
+  transition: box-shadow .15s;
+}
+.met:hover { box-shadow: var(--sh-md); }
+.met-lbl { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 7px; }
+.met-val {
+  font-family: 'JetBrains Mono', monospace; font-size: 21px; font-weight: 500;
+  line-height: 1.1; color: var(--text);
+}
+.met-val.teal  { color: var(--teal); }
+.met-val.coral { color: var(--coral); }
+.met-val.green { color: var(--green); }
+.met-sub { font-size: 11px; color: var(--light); margin-top: 4px; }
+
+/* ── CHART CARD ──────────────────────────────── */
+.chart-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 20px; box-shadow: var(--sh); margin-bottom: 0;
+}
+.chart-wrap { position: relative; height: 250px; margin: 14px 0 6px; }
+.legend { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-top: 8px; }
+.leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.leg-dash { width: 22px; height: 2px; border-top: 2px dashed var(--blue); flex-shrink: 0; }
+
+/* ── PRAZO ROW ───────────────────────────────── */
+.prazo-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+
+/* ── TABLE ───────────────────────────────────── */
+.tbl-wrap { overflow-x: auto; border-radius: var(--r); border: 1px solid var(--border); box-shadow: var(--sh); }
+table { width: 100%; border-collapse: collapse; background: var(--surface); }
+thead th {
+  background: var(--surface2); padding: 10px 11px; text-align: right;
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+thead th:first-child { text-align: center; width: 38px; }
+tbody td {
+  padding: 8px 11px; text-align: right; border-bottom: 1px solid var(--border-l);
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; white-space: nowrap;
+}
+tbody td.center { text-align: center; font-family: inherit; }
+tbody td.nm { font-family: inherit; font-size: 12px; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: #FAFBFC; }
+tbody tr.paid { opacity: .45; }
+.pg { display: flex; align-items: center; justify-content: space-between; padding-top: 12px; font-size: 12px; color: var(--muted); }
+
+/* ── CHECK BUTTON ────────────────────────────── */
+.chk {
+  width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--border);
+  background: transparent; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; margin: auto; transition: all .15s; flex-shrink: 0;
+}
+.chk:hover { border-color: var(--teal-mid); background: var(--teal-l); }
+.chk.on { background: var(--teal); border-color: var(--teal); }
+.chk.on::after {
+  content: ''; width: 9px; height: 5px;
+  border-left: 2px solid #fff; border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px); display: block;
+}
+
+/* ── SIMULATOR ───────────────────────────────── */
+.sim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.sec-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.sec-sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.add-row { display: flex; gap: 7px; align-items: flex-end; }
+.add-row .field { display: flex; flex-direction: column; }
+.add-row .field.w80 { width: 80px; flex-shrink: 0; }
+.add-row .field.grow { flex: 1; }
+.chip {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--r-sm); font-size: 12.5px;
+  transition: background .12s;
+}
+.chip:hover { background: #F0F4F8; }
+.badge {
+  display: inline-flex; align-items: center; padding: 2px 9px;
+  border-radius: 20px; font-size: 11px; font-weight: 700;
+}
+.badge.g { background: var(--green-l); color: var(--green-t); }
+.badge.t { background: var(--teal-l); color: var(--teal-t); }
+.badge.c { background: var(--coral-l); color: var(--coral-t); }
+
+/* ── RESULT BOX ──────────────────────────────── */
+.res-box {
+  background: var(--green-l); border: 1px solid #A7F3D0;
+  border-radius: var(--r); padding: 18px 20px; margin-top: 18px;
+}
+.res-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 14px; }
+.res-lbl { font-size: 10.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+.res-val { font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 600; color: var(--green-t); }
+.res-note { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ── EMPTY ───────────────────────────────────── */
+.empty {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 40px 24px; text-align: center; box-shadow: var(--sh); margin-top: 20px;
+}
+.empty-icon { font-size: 34px; margin-bottom: 10px; }
+.empty-title { font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 4px; }
+.empty-sub { font-size: 12px; color: var(--muted); max-width: 320px; margin: 0 auto; }
+
+/* ── UTILS ───────────────────────────────────── */
+.row  { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rowb { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.muted { color: var(--muted); font-size: 12px; }
+.green { color: var(--green); }
+.coral { color: var(--coral); }
+.hidden { display: none !important; }
+.mt4  { margin-top: 4px; } .mt8  { margin-top: 8px; }
+.mt12 { margin-top: 12px; } .mt16 { margin-top: 16px; }
+.mb4  { margin-bottom: 4px; } .mb8  { margin-bottom: 8px; }
+.mb12 { margin-bottom: 12px; } .mb16 { margin-bottom: 16px; }
+
+/* ── PROGRESS BAR ─────────────────────────────── */
+.prog-bar { height: 6px; background: var(--border-l); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+.prog-fill { height: 100%; background: var(--teal-mid); border-radius: 4px; transition: width .4s; }
+
+/* ── FOOTER ──────────────────────────────────── */
+footer {
+  text-align: center; font-size: 11px; color: var(--light);
+  padding: 20px 0 8px; border-top: 1px solid var(--border-l); margin-top: 32px;
+}
+
+/* ── RESPONSIVE ──────────────────────────────── */
+@media (max-width: 640px) {
+  .wrap { padding: 0 12px 40px; }
+  .sim-grid { grid-template-columns: 1fr; }
+  .prazo-row { grid-template-columns: 1fr 1fr; }
+  .topbar { padding: 14px 0 14px; }
+  .logo-name { font-size: 17px; }
+  .met-val { font-size: 18px; }
+  .tbb { padding: 8px 12px; font-size: 12px; }
+  .chart-wrap { height: 200px; }
+  .add-row { flex-wrap: wrap; }
+  .add-row .field.w80 { width: 70px; }
+}
+
+@media print {
+  .topbar-r, .tab-bar, footer { display: none !important; }
+  .wrap { padding: 0; }
+  body { background: white; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ░░ TOPBAR ░░ -->
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-icon">🏠</div>
+      <div>
+        <div class="logo-name">SimulaFin</div>
+        <div class="logo-sub">Financiamento Imobiliário · SAC / PRICE</div>
+      </div>
+    </div>
+    <div class="topbar-r">
+      <div class="tog" id="tog-sys">
+        <button class="btn active" onclick="setSystem('SAC')">SAC</button>
+        <button class="btn"        onclick="setSystem('PRICE')">PRICE</button>
+      </div>
+      <button class="btn ghost" onclick="toggleCfg()">⚙ Config</button>
+      <button class="btn ghost" onclick="exportCSV()" title="Exportar tabela CSV">⬇ CSV</button>
+      <button class="btn ghost" onclick="window.print()" title="Imprimir">🖨</button>
+    </div>
+  </div>
+
+  <!-- ░░ CONFIG ░░ -->
+  <div id="cfg-panel">
+    <div class="cfg-card">
+      <div class="rowb mb12">
+        <div style="font-size:14px;font-weight:600">Parâmetros do Financiamento</div>
+        <span class="badge t" id="sys-badge">SAC</span>
+      </div>
+      <div class="cfg-grid">
+        <div>
+          <label class="fl">Valor financiado (R$)</label>
+          <input type="number" id="inp-v" value="250000" min="1000" step="1000" oninput="recalc()">
+        </div>
+        <div>
+          <label class="fl">Taxa de juros anual (%)</label>
+          <input type="number" id="inp-r" value="8.16" min="0.01" max="30" step="0.01" oninput="recalc()">
+        </div>
+        <div>
+          <label class="fl">Prazo (meses)</label>
+          <input type="number" id="inp-n" value="360" min="12" max="480" step="12" oninput="recalc()">
+        </div>
+        <div>
+          <label class="fl">Mês/Ano da 1ª parcela</label>
+          <input type="month" id="inp-d" value="2024-01" oninput="recalc()">
+        </div>
+      </div>
+      <div class="muted">💡 MCMV 2024: 8,16% a.a. · SAC · 360 meses · Use FGTS como entrada para reduzir o principal.</div>
+    </div>
+  </div>
+
+  <!-- ░░ TABS ░░ -->
+  <div class="tab-bar">
+    <button class="tbb active" onclick="setTab('dash')">Visão Geral</button>
+    <button class="tbb"        onclick="setTab('tbl')">Tabela</button>
+    <button class="tbb"        onclick="setTab('sim')">Simulador</button>
+  </div>
+
+  <!-- ░░░░ TAB: DASHBOARD ░░░░ -->
+  <div id="tab-dash">
+
+    <!-- Metric cards -->
+    <div class="met-grid" id="met-grid">
+      <div class="met"><div class="met-lbl">Carregando…</div></div>
+    </div>
+
+    <!-- Prazo comparison -->
+    <div class="prazo-row">
+      <div class="met">
+        <div class="met-lbl">Prazo original</div>
+        <div class="met-val" id="m-pb" style="font-size:17px">—</div>
+        <div class="met-sub" id="m-tb">—</div>
+        <div class="prog-bar"><div class="prog-fill" id="prog-b" style="width:0%"></div></div>
+      </div>
+      <div class="met">
+        <div class="met-lbl">Prazo com amortizações</div>
+        <div class="met-val" id="m-ps" style="font-size:17px">—</div>
+        <div class="met-sub" id="m-ts">—</div>
+        <div class="prog-bar"><div class="prog-fill" id="prog-s" style="width:0%;background:var(--green)"></div></div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-card">
+      <div class="rowb">
+        <div>
+          <div style="font-size:14px;font-weight:600">Evolução do financiamento</div>
+          <div class="muted">Saldo devedor × juros acumulados ao longo do prazo</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chart" role="img" aria-label="Gráfico de linha com evolução do saldo devedor e juros acumulados">Carregando gráfico…</canvas>
+      </div>
+      <div class="legend">
+        <div class="leg-item"><div class="leg-dot" style="background:#1D9E75"></div>Saldo devedor</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#D85A30"></div>Juros acumulados</div>
+        <div class="leg-item" id="leg-sim" style="display:none"><div class="leg-dash"></div>Saldo c/ extras</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ░░░░ TAB: TABELA ░░░░ -->
+  <div id="tab-tbl" class="hidden">
+    <div class="muted mb12">Clique no círculo para marcar a parcela como paga. Dados salvos automaticamente no navegador.</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>✓</th><th style="text-align:center">Mês</th><th style="text-align:center">Data</th>
+            <th>Saldo Inicial</th><th>Juros</th><th>Amort.</th>
+            <th>Extra</th><th>Parcela Total</th><th>Saldo Final</th>
+          </tr>
+        </thead>
+        <tbody id="tbl-body"></tbody>
+      </table>
+    </div>
+    <div class="pg">
+      <span id="pg-info">—</span>
+      <div class="row" style="gap:6px">
+        <button class="btn" id="btn-prev" onclick="goPage(-1)" style="padding:6px 13px">‹ Anterior</button>
+        <button class="btn" id="btn-next" onclick="goPage(1)"  style="padding:6px 13px">Próximo ›</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ░░░░ TAB: SIMULADOR ░░░░ -->
+  <div id="tab-sim" class="hidden">
+    <div class="sim-grid">
+
+      <!-- Amortizações extras -->
+      <div>
+        <div class="sec-title">Amortizações Extras</div>
+        <div class="sec-sub">FGTS, 13º salário, bônus ou qualquer pagamento pontual para cortar prazo</div>
+        <div class="add-row">
+          <div class="field w80">
+            <label class="fl">Mês nº</label>
+            <input type="number" id="e-m" placeholder="12" min="1">
+          </div>
+          <div class="field grow">
+            <label class="fl">Valor (R$)</label>
+            <input type="number" id="e-v" placeholder="10000" min="0">
+          </div>
+          <button class="btn primary" onclick="addExtra()" style="flex-shrink:0;padding:8px 14px">+ Adicionar</button>
+        </div>
+        <div id="extras-list" style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
+          <div class="muted" style="font-style:italic">Nenhuma amortização extra cadastrada.</div>
+        </div>
+      </div>
+
+      <!-- TR -->
+      <div>
+        <div class="sec-title">Variação da TR</div>
+        <div class="sec-sub">Taxa Referencial — aplique a variação real mês a mês (consulte o Banco Central)</div>
+        <div class="add-row">
+          <div class="field w80">
+            <label class="fl">Mês nº</label>
+            <input type="number" id="t-m" placeholder="1" min="1">
+          </div>
+          <div class="field grow">
+            <label class="fl">TR (% a.m.)</label>
+            <input type="number" id="t-v" placeholder="0.0836" step="0.0001">
+          </div>
+          <button class="btn primary" onclick="addTR()" style="flex-shrink:0;padding:8px 14px">+ Adicionar</button>
+        </div>
+        <div id="tr-list" style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
+          <div class="muted" style="font-style:italic">TR = 0% em todos os meses (padrão).</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result box -->
+    <div id="res-box" class="res-box hidden">
+      <div style="font-size:13px;font-weight:700;color:var(--green-t);margin-bottom:12px">✅ Resultado da simulação</div>
+      <div class="res-grid" id="res-grid"></div>
+    </div>
+
+    <!-- Empty state -->
+    <div id="sim-empty" class="empty">
+      <div class="empty-icon">📊</div>
+      <div class="empty-title">Adicione amortizações ou TR para simular</div>
+      <div class="empty-sub">Veja em tempo real quanto você economiza em juros e quantos meses corta do financiamento</div>
+    </div>
+  </div>
+
+  <footer>SimulaFin · Simulador educacional — não constitui consultoria financeira · Dados salvos localmente no seu dispositivo</footer>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════ */
+const ST = {
+  cfg: { v: 250000, r: 8.16, n: 360, sys: 'SAC', d: '2024-01' },
+  extras: {},
+  trs: {},
+  paid: new Set(),
+  tab: 'dash',
+  pg: 0,
+  bt: [],   // base table (no extras)
+  st: [],   // sim table (with extras)
+};
+const PG = 12;
+let chartInst = null;
+
+/* ══════════════════════════════════════════════════════
+   FINANCE ENGINE  —  modo REDUÇÃO DE PRAZO
+   ─────────────────────────────────────────────────────
+   SAC  : amortização fixa = principal / n_original.
+          Extra → reduz saldo → loop termina antes.
+   PRICE: PMT fixo calculado UMA VEZ no início.
+          Extra é pago em cima do PMT normal.
+          Saldo cai mais rápido → loop termina antes.
+          (nunca recalculamos PMT com saldo residual,
+           pois isso geraria redução de parcela, não prazo)
+══════════════════════════════════════════════════════ */
+function buildTable(v, r, n, sys, extras, trs, startDate) {
+  const base = Math.pow(1 + r / 100, 1/12) - 1;
+
+  // PRICE: pré-calcula parcela fixa original (base rate, sem TR)
+  let fixedPMT = 0;
+  if (sys === 'PRICE') {
+    const f = Math.pow(1 + base, n);
+    fixedPMT = base > 0 ? v * (base * f) / (f - 1) : v / n;
+  }
+
+  const [sy, sm] = (startDate||'2024-01').split('-').map(Number);
+  let bal = v, accI = 0, totPd = 0;
+  const rows = [];
+
+  for (let m = 1; m <= n && bal > 0.01; m++) {
+    const tr   = (trs[m]    || 0) / 100;
+    const rate = base + tr;               // taxa efetiva (base + TR)
+    const ex   = extras[m]  || 0;
+    const interest = bal * rate;
+    let amort;
+
+    if (sys === 'SAC') {
+      // Amortização base fixa = v/n_original + extra
+      // Saldo acaba antes de n meses → prazo reduzido
+      amort = Math.min(v / n + ex, bal);
+    } else {
+      // PRICE: parcela permanece fixedPMT (corrigida pela TR se houver)
+      // Se TR sobe naquele mês → juros sobem → amortização base cai,
+      // mas o PMT pago continua sendo fixedPMT (comportamento real CEF)
+      // Extra é somado → prazo encurta
+      const baseAmort = Math.max(0, fixedPMT - interest);
+      amort = Math.min(baseAmort + ex, bal);
+    }
+
+    const inst   = amort + interest;
+    const newBal = Math.max(0, bal - amort);
+    accI  += interest;
+    totPd += inst;
+
+    const mo = (sm - 1 + m - 1) % 12;
+    const yr = sy + Math.floor((sm - 1 + m - 1) / 12);
+    const dt = String(mo + 1).padStart(2, '0') + '/' + yr;
+
+    rows.push({ m, dt, bal, interest, amort: amort - ex, ex, inst, newBal, accI, totPd });
+    bal = newBal;
+  }
+  return rows;
+}
+
+/* ══════════════════════════════════════════════════════
+   FORMATTERS
+══════════════════════════════════════════════════════ */
+const BRL = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const PCT = new Intl.NumberFormat('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const N1  = new Intl.NumberFormat('pt-BR',{maximumFractionDigits:1});
+const fmt = v => v == null ? '—' : BRL.format(Math.round(v));
+const fmtP = v => PCT.format(v) + '%';
+const fmtN = v => N1.format(v);
+
+/* ══════════════════════════════════════════════════════
+   RECALC
+══════════════════════════════════════════════════════ */
+function recalc() {
+  const c = ST.cfg;
+  c.v = +document.getElementById('inp-v').value || 250000;
+  c.r = +document.getElementById('inp-r').value || 8.16;
+  c.n = +document.getElementById('inp-n').value || 360;
+  c.d = document.getElementById('inp-d').value   || '2024-01';
+
+  ST.bt = buildTable(c.v, c.r, c.n, c.sys, {},      ST.trs, c.d);
+  ST.st = buildTable(c.v, c.r, c.n, c.sys, ST.extras, ST.trs, c.d);
+
+  save();
+  renderAll();
+}
+
+/* ══════════════════════════════════════════════════════
+   RENDER ALL
+══════════════════════════════════════════════════════ */
+function renderAll() {
+  renderMets();
+  renderChart();
+  if (ST.tab === 'tbl') renderTable();
+  if (ST.tab === 'sim') renderSim();
+}
+
+/* ── Metrics ── */
+function renderMets() {
+  const bt = ST.bt, st = ST.st;
+  if (!bt.length) return;
+  const bL = bt[bt.length-1], sL = st[st.length-1];
+  const sav = (bL.accI||0) - (sL.accI||0);
+  const mSv = bt.length - st.length;
+  const fu  = st.find(r => !ST.paid.has(r.m));
+  const curBal  = fu ? fu.bal  : 0;
+  const curInst = fu ? fu.inst : 0;
+
+  document.getElementById('met-grid').innerHTML = [
+    { lbl:'Saldo devedor atual', val: fmt(curBal), sub:'a liquidar', cls:'teal' },
+    { lbl:'Parcela ' + (ST.cfg.sys==='SAC'?'atual':'fixa'), val: fmt(curInst), sub: ST.cfg.sys==='SAC'?'decrescente (SAC)':'fixa (PRICE)', cls:'' },
+    { lbl:'Total de juros', val: fmt(sL.accI), sub: fmtP(sL.accI / ST.cfg.v * 100) + ' do principal', cls:'coral' },
+    { lbl:'Economia gerada', val: sav>0.5?fmt(sav):'R$ 0', sub: mSv>0?mSv+' meses a menos':'adicione amortizações', cls: sav>0.5?'green':'' },
+  ].map(c=>`<div class="met">
+    <div class="met-lbl">${c.lbl}</div>
+    <div class="met-val ${c.cls}">${c.val}</div>
+    <div class="met-sub">${c.sub}</div>
+  </div>`).join('');
+
+  // Prazo row
+  const paidCount = ST.st.filter(r => ST.paid.has(r.m)).length;
+  const pctPaid = bt.length > 0 ? (paidCount / bt.length * 100) : 0;
+
+  const mSvBadge = mSv > 0 ? ` <span class="badge g" style="font-size:10px;padding:1px 7px">-${mSv}m</span>` : '';
+  document.getElementById('m-pb').innerHTML = bt.length + ' meses <span style="font-size:13px;color:var(--muted)">(' + fmtN(bt.length/12) + ' anos)</span>';
+  document.getElementById('m-tb').textContent = 'Total estimado: ' + fmt(bL.totPd);
+  document.getElementById('prog-b').style.width = pctPaid.toFixed(1) + '%';
+
+  const simEl = document.getElementById('m-ps');
+  simEl.innerHTML = st.length + ' meses ' + mSvBadge + ' <span style="font-size:13px;color:var(--muted)">(' + fmtN(st.length/12) + ' anos)</span>';
+  simEl.style.color = mSv > 0 ? 'var(--green)' : 'var(--text)';
+  document.getElementById('m-ts').textContent = 'Total estimado: ' + fmt(sL.totPd);
+  document.getElementById('prog-s').style.width = pctPaid.toFixed(1) + '%';
+}
+
+/* ── Chart ── */
+function renderChart() {
+  const bt = ST.bt, st = ST.st;
+  if (!bt.length) return;
+
+  const step = Math.max(1, Math.floor(bt.length / 72));
+  const lbs=[], sal=[], jur=[], salS=[];
+
+  for (let i=0; i<bt.length; i+=step) {
+    const b = bt[i], s = st[Math.min(i, st.length-1)];
+    lbs.push(b.dt || 'm'+b.m);
+    sal.push(Math.round(b.newBal));
+    jur.push(Math.round(b.accI));
+    salS.push(s ? Math.round(s.newBal) : 0);
+  }
+
+  const hasEx = Object.keys(ST.extras).length > 0;
+  document.getElementById('leg-sim').style.display = hasEx ? 'flex' : 'none';
+
+  const ds = [
+    { label:'Saldo devedor', data:sal, borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,.08)', borderWidth:2, fill:true, pointRadius:0, tension:.4 },
+    { label:'Juros acumulados', data:jur, borderColor:'#D85A30', backgroundColor:'rgba(216,90,48,.05)', borderWidth:2, fill:true, pointRadius:0, tension:.4 },
+  ];
+  if (hasEx) ds.push({ label:'Saldo c/ extras', data:salS, borderColor:'#185FA5', borderWidth:2, borderDash:[6,4], fill:false, pointRadius:0, tension:.4 });
+
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+  chartInst = new Chart(document.getElementById('chart').getContext('2d'), {
+    type:'line', data:{ labels:lbs, datasets:ds },
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:{duration:350},
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#fff', titleColor:'#111', bodyColor:'#6B7280',
+          borderColor:'#E5E7EB', borderWidth:1, padding:10,
+          callbacks:{
+            title: i => 'Parcela ' + lbs[i[0].dataIndex],
+            label: i => ' ' + i.dataset.label + ': ' + fmt(i.raw),
+          }
+        }
+      },
+      scales:{
+        x:{ ticks:{font:{size:10},maxTicksLimit:8,color:'#9CA3AF'}, grid:{color:'rgba(0,0,0,.04)'} },
+        y:{
+          ticks:{
+            font:{size:10},color:'#9CA3AF',
+            callback: v => v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'k':v
+          },
+          grid:{color:'rgba(0,0,0,.04)',borderDash:[3,3]}
+        }
+      }
+    }
+  });
+}
+
+/* ── Table ── */
+function renderTable() {
+  const rows = ST.st;
+  const total = Math.ceil(rows.length / PG);
+  const pg = Math.min(ST.pg, Math.max(0, total-1));
+  ST.pg = pg;
+  const slice = rows.slice(pg*PG, (pg+1)*PG);
+
+  document.getElementById('tbl-body').innerHTML = slice.map(r => {
+    const paid = ST.paid.has(r.m);
+    const aniv = r.m % 12 === 0;
+    return `<tr class="${paid?'paid':''}">
+      <td class="center">
+        <button class="chk${paid?' on':''}" onclick="togglePaid(${r.m})" title="${paid?'Desmarcar':'Marcar como paga'}"></button>
+      </td>
+      <td class="nm center" style="font-weight:${aniv?700:400};color:${aniv?'var(--teal)':'inherit'}">${r.m}</td>
+      <td class="nm center" style="font-size:11px;color:var(--muted)">${r.dt}</td>
+      <td>${fmt(r.bal)}</td>
+      <td class="coral">${fmt(r.interest)}</td>
+      <td>${fmt(r.amort)}</td>
+      <td style="color:${r.ex>0?'var(--green)':'var(--light)'}">${r.ex>0?fmt(r.ex):'—'}</td>
+      <td style="font-weight:600">${fmt(r.inst)}</td>
+      <td style="color:var(--muted)">${fmt(r.newBal)}</td>
+    </tr>`;
+  }).join('');
+
+  const s = pg*PG+1, e = Math.min((pg+1)*PG, rows.length);
+  document.getElementById('pg-info').textContent = `Parcelas ${s}–${e} de ${rows.length}`;
+  document.getElementById('btn-prev').disabled = pg === 0;
+  document.getElementById('btn-next').disabled = pg >= total-1;
+}
+
+/* ── Extras list ── */
+function renderExtras() {
+  const el = document.getElementById('extras-list');
+  const ent = Object.entries(ST.extras).sort((a,b)=>+a[0]-+b[0]);
+  if (!ent.length) { el.innerHTML='<div class="muted" style="font-style:italic">Nenhuma amortização extra cadastrada.</div>'; return; }
+  el.innerHTML = ent.map(([m,v])=>`
+    <div class="chip">
+      <div><span style="font-weight:600">Mês ${m}</span></div>
+      <div class="row" style="gap:10px">
+        <span class="badge g">${fmt(v)}</span>
+        <button class="btn del" onclick="delExtra(${m})" title="Remover">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+/* ── TR list ── */
+function renderTRs() {
+  const el = document.getElementById('tr-list');
+  const ent = Object.entries(ST.trs).sort((a,b)=>+a[0]-+b[0]);
+  if (!ent.length) { el.innerHTML='<div class="muted" style="font-style:italic">TR = 0% em todos os meses (padrão).</div>'; return; }
+  el.innerHTML = ent.map(([m,v])=>`
+    <div class="chip">
+      <span>Mês <strong>${m}</strong></span>
+      <div class="row" style="gap:10px">
+        <span class="badge t">${(+v).toFixed(4)}% a.m.</span>
+        <button class="btn del" onclick="delTR(${m})" title="Remover">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+/* ── Sim result ── */
+function renderSim() {
+  const hasAct = Object.keys(ST.extras).length > 0 || Object.keys(ST.trs).length > 0;
+  document.getElementById('sim-empty').classList.toggle('hidden', hasAct);
+  document.getElementById('res-box').classList.toggle('hidden', !hasAct);
+  if (!hasAct || !ST.bt.length) return;
+
+  const bL = ST.bt[ST.bt.length-1], sL = ST.st[ST.st.length-1];
+  const sav = (bL.accI||0) - (sL.accI||0);
+  const mSv = ST.bt.length - ST.st.length;
+  const totEx = Object.values(ST.extras).reduce((a,b)=>a+b,0);
+  const roi = totEx > 0 ? (sav/totEx*100) : 0;
+
+  document.getElementById('res-grid').innerHTML = [
+    { lbl:'Economia em juros',    val: fmt(sav),           note:'juros que você não paga mais' },
+    { lbl:'Meses economizados',   val: mSv+' meses',       note: fmtN(mSv/12)+' anos a menos no prazo' },
+    { lbl:'Novo prazo total',     val: ST.st.length+' m',  note: fmtN(ST.st.length/12)+' anos' },
+    { lbl:'ROI das amortizações', val: fmtP(roi),          note: fmt(totEx)+' investidos em quitação' },
+  ].map(c=>`<div>
+    <div class="res-lbl">${c.lbl}</div>
+    <div class="res-val">${c.val}</div>
+    <div class="res-note">${c.note}</div>
+  </div>`).join('');
+}
+
+/* ══════════════════════════════════════════════════════
+   INTERACTIONS
+══════════════════════════════════════════════════════ */
+function setSystem(s) {
+  ST.cfg.sys = s;
+  document.querySelectorAll('#tog-sys .btn').forEach((b,i)=>
+    b.classList.toggle('active', (i===0&&s==='SAC')||(i===1&&s==='PRICE')));
+  const bdg = document.getElementById('sys-badge');
+  if (bdg) bdg.textContent = s;
+  recalc();
+}
+
+function toggleCfg() {
+  const el = document.getElementById('cfg-panel');
+  el.style.display = el.style.display==='none'||el.style.display===''?'block':'none';
+}
+
+function setTab(t) {
+  ST.tab = t;
+  ['dash','tbl','sim'].forEach((id,i)=>{
+    document.getElementById('tab-'+id).classList.toggle('hidden', id!==t);
+    document.querySelectorAll('.tbb')[i].classList.toggle('active', id===t);
+  });
+  if (t==='tbl') renderTable();
+  if (t==='sim') renderSim();
+}
+
+function togglePaid(m) {
+  ST.paid.has(m) ? ST.paid.delete(m) : ST.paid.add(m);
+  save(); renderTable(); renderMets();
+}
+
+function goPage(d) {
+  const total = Math.ceil(ST.st.length / PG);
+  ST.pg = Math.max(0, Math.min(ST.pg + d, total-1));
+  renderTable();
+}
+
+function addExtra() {
+  const m = +document.getElementById('e-m').value;
+  const v = +document.getElementById('e-v').value;
+  if (!m||m<1||m>ST.cfg.n||!v||v<=0) { alert('Informe mês válido (1–'+ST.cfg.n+') e valor positivo.'); return; }
+  ST.extras[m] = (ST.extras[m]||0) + v;
+  document.getElementById('e-m').value = '';
+  document.getElementById('e-v').value = '';
+  renderExtras(); recalc();
+  if (ST.tab==='sim') renderSim();
+}
+
+function delExtra(m) {
+  delete ST.extras[m];
+  renderExtras(); recalc();
+  if (ST.tab==='sim') renderSim();
+}
+
+function addTR() {
+  const m = +document.getElementById('t-m').value;
+  const v = +document.getElementById('t-v').value;
+  if (!m||m<1||m>ST.cfg.n||isNaN(v)) { alert('Informe mês válido e valor da TR.'); return; }
+  ST.trs[m] = v;
+  document.getElementById('t-m').value = '';
+  document.getElementById('t-v').value = '';
+  renderTRs(); recalc();
+}
+
+function delTR(m) {
+  delete ST.trs[m];
+  renderTRs(); recalc();
+}
+
+/* ══════════════════════════════════════════════════════
+   EXPORT CSV
+══════════════════════════════════════════════════════ */
+function exportCSV() {
+  if (!ST.st.length) return;
+  const head = ['Mês','Data','Saldo Inicial','Juros','Amortização','Extra','Parcela Total','Saldo Final','Juros Acumulados'];
+  const rows = ST.st.map(r=>[
+    r.m, r.dt,
+    r.bal.toFixed(2), r.interest.toFixed(2), r.amort.toFixed(2),
+    r.ex.toFixed(2), r.inst.toFixed(2), r.newBal.toFixed(2), r.accI.toFixed(2)
+  ]);
+  const csv = [head, ...rows].map(r => r.join(';')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'simulafin-tabela.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ══════════════════════════════════════════════════════
+   PERSISTENCE
+══════════════════════════════════════════════════════ */
+function save() {
+  try {
+    localStorage.setItem('sf_v2', JSON.stringify({
+      cfg: ST.cfg, extras: ST.extras, trs: ST.trs, paid: [...ST.paid]
+    }));
+  } catch(e) {}
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem('sf_v2');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d.cfg)    Object.assign(ST.cfg, d.cfg);
+    if (d.extras) ST.extras = d.extras;
+    if (d.trs)    ST.trs    = d.trs;
+    if (d.paid)   ST.paid   = new Set(d.paid);
+  } catch(e) {}
+}
+
+/* ══════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════ */
+(function init() {
+  load();
+  const c = ST.cfg;
+  document.getElementById('inp-v').value = c.v;
+  document.getElementById('inp-r').value = c.r;
+  document.getElementById('inp-n').value = c.n;
+  document.getElementById('inp-d').value = c.d || '2024-01';
+  setSystem(c.sys);
+  renderExtras();
+  renderTRs();
+  ST.bt = buildTable(c.v, c.r, c.n, c.sys, {},       ST.trs, c.d);
+  ST.st = buildTable(c.v, c.r, c.n, c.sys, ST.extras, ST.trs, c.d);
+  renderAll();
+})();
+</script>
+</body>
+</html>
